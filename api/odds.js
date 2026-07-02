@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 const ODDS_KEY = '88d0cf7db995b9525317e3d0b34449e9';
-const BOOKS = ['draftkings','fanduel','betmgm','caesars','pointsbet','williamhill_us','barstool','bovada'];
+const BOOKS = ['draftkings','fanduel','betmgm','caesars','pointsbet','williamhill_us','barstool','bovada','fanatics'];
 const MARKETS = ['h2h','spreads','totals'];
 
 module.exports = async (req, res) => {
