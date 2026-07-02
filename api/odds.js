@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const ODDS_KEY = '88d0cf7db995b9525317e3d0b34449e9';
+const ODDS_KEY = process.env.ODDS_KEY || 'df1452c70e29f7574614ec97260cea27';
 const BOOKS = ['draftkings','fanduel','betmgm','caesars','pointsbet','williamhill_us','barstool','bovada','fanatics'];
 const MARKETS = ['h2h','spreads','totals'];
 
