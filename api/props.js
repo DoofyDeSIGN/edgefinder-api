@@ -1,51 +1,37 @@
 const fetch = require('node-fetch');
 
-const SPORT_MAP = {
-  'americanfootball_nfl':'nfl','americanfootball_ncaaf':'ncaaf',
-  'basketball_nba':'nba','basketball_ncaab':'ncaab',
-  'baseball_mlb':'mlb','icehockey_nhl':'nhl',
-  'soccer_epl':'soccer','soccer_uefa_champs_league':'soccer','soccer_fifa_world_cup':'soccer'
+const ODDS_KEY = process.env.ODDS_KEY || 'df1452c70e29f7574614ec97260cea27';
+
+const PROP_MARKETS = {
+  'baseball_mlb': 'batter_hits,batter_home_runs,batter_rbis,pitcher_strikeouts',
+  'basketball_nba': 'player_points,player_rebounds,player_assists,player_threes',
+  'icehockey_nhl': 'player_points,player_goals,player_shots_on_goal',
+  'americanfootball_nfl': 'player_pass_yds,player_rush_yds,player_reception_yds,player_receptions',
+  'soccer_epl': 'player_goal_scorer_anytime,player_shots_on_target',
+  'soccer_fifa_world_cup': 'player_goal_scorer_anytime,player_shots_on_target'
 };
 
 module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-  const { sport } = req.query;
-  const anSport = SPORT_MAP[sport];
-  if (!anSport) { res.json({}); return; }
+  const { sport, eventId } = req.query;
+  if (!sport) { res.status(400).json({ error: 'sport required' }); return; }
+
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const url = `https://api.actionnetwork.com/web/v1/games?sport=${anSport}&date=${today}&limit=100`;
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-        'Referer': 'https://www.actionnetwork.com/',
-        'Origin': 'https://www.actionnetwork.com'
-      }
-    });
-    if (!response.ok) { res.json({ error: response.status, games: [] }); return; }
-    const data = await response.json();
-    const games = data.games || data || [];
-    const result = {};
-    games.forEach(game => {
-      const away = game.away_team?.full_name || game.teams?.away?.full_name;
-      const home = game.home_team?.full_name || game.teams?.home?.full_name;
-      if (!away || !home) return;
-      const key = `${away}_${home}`;
-      result[key] = { away, home, markets: {} };
-      ['moneyline','spread','total'].forEach(mktKey => {
-        const mkt = game[mktKey] || game.markets?.[mktKey];
-        if (!mkt) return;
-        const ourKey = mktKey==='moneyline'?'h2h':mktKey==='spread'?'spreads':'totals';
-        result[key].markets[ourKey] = {
-          away: { bets_pct: mkt.away_bets_pct||null, money_pct: mkt.away_money_pct||null },
-          home: { bets_pct: mkt.home_bets_pct||null, money_pct: mkt.home_money_pct||null },
-          over:  { bets_pct: mkt.over_bets_pct||null,  money_pct: mkt.over_money_pct||null },
-          under: { bets_pct: mkt.under_bets_pct||null, money_pct: mkt.under_money_pct||null }
-        };
-      });
-    });
-    res.json(result);
+    const markets = PROP_MARKETS[sport] || 'player_points';
+
+    if (eventId) {
+      // Fetch props for a specific event
+      const url = `https://api.the-odds-api.com/v4/sports/${sport}/events/${eventId}/odds?apiKey=${ODDS_KEY}&regions=us&markets=${markets}&oddsFormat=american`;
+      const response = await fetch(url);
+      const data = await response.json();
+      res.json(data);
+    } else {
+      // First get the list of events
+      const eventsUrl = `https://api.the-odds-api.com/v4/sports/${sport}/events?apiKey=${ODDS_KEY}`;
+      const eventsRes = await fetch(eventsUrl);
+      const events = await eventsRes.json();
+      res.json(Array.isArray(events) ? events : []);
+    }
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
